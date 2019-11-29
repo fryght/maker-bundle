@@ -11,6 +11,7 @@
 
 namespace Symfony\Bundle\MakerBundle\Doctrine;
 
+use function strtolower;
 use Symfony\Bundle\MakerBundle\Generator;
 use Symfony\Bundle\MakerBundle\Util\ClassNameDetails;
 
@@ -26,25 +27,31 @@ final class EntityClassGenerator
         $this->generator = $generator;
     }
 
-    public function generateEntityClass(ClassNameDetails $entityClassDetails, bool $apiResource, bool $withPasswordUpgrade = false): string
+    public function generateEntityClass(ClassNameDetails $entityClassDetails, bool $apiResource, bool $skipGeneratingRepository = false, bool $withPasswordUpgrade = false): string
     {
-        $repoClassDetails = $this->generator->createClassNameDetails(
-            $entityClassDetails->getRelativeName(),
-            'Repository\\',
-            'Repository'
-        );
-
+        if (false === $skipGeneratingRepository) {
+            $this->generateRepositoryClass($entityClassDetails, $withPasswordUpgrade);
+            $repoClassDetails = $this->getRepoClassNameDetails($entityClassDetails);
+        }
         $entityPath = $this->generator->generateClass(
             $entityClassDetails->getFullName(),
             'doctrine/Entity.tpl.php',
             [
-                'repository_full_class_name' => $repoClassDetails->getFullName(),
+                'generate_repository' => ! $skipGeneratingRepository,
+                'repository_full_class_name' => isset($repoClassDetails) ? $repoClassDetails->getFullName() : null,
                 'api_resource' => $apiResource,
             ]
         );
 
+        return $entityPath;
+    }
+
+    public function generateRepositoryClass(ClassNameDetails $entityClassDetails, bool $withPasswordUpgrade = false): string
+    {
+        $repoClassDetails = $this->getRepoClassNameDetails($entityClassDetails);
+
         $entityAlias = strtolower($entityClassDetails->getShortName()[0]);
-        $this->generator->generateClass(
+        $repositoryPath = $this->generator->generateClass(
             $repoClassDetails->getFullName(),
             'doctrine/Repository.tpl.php',
             [
@@ -55,6 +62,17 @@ final class EntityClassGenerator
             ]
         );
 
-        return $entityPath;
+        return $repositoryPath;
+    }
+
+    private function getRepoClassNameDetails(ClassNameDetails $entityClassDetails): ClassNameDetails
+    {
+        $repoClassDetails = $this->generator->createClassNameDetails(
+            $entityClassDetails->getRelativeName(),
+            'Repository\\',
+            'Repository'
+        );
+
+        return $repoClassDetails;
     }
 }

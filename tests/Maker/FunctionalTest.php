@@ -839,6 +839,31 @@ class FunctionalTest extends MakerTestCase
             }),
         ];
 
+        yield 'entity_new_no_repository' => [MakerTestDetails::createTest(
+            $this->getMakerInstance(MakeEntity::class),
+            [
+                // entity class name
+                'User',
+                // Mark the entity as an API Platform resource
+                'n',
+                // Skip repository generation
+                'y',
+                // add not additional fields
+                '',
+            ])
+            ->addExtraDependencies('api')
+            ->setFixtureFilesPath(__DIR__.'/../fixtures/MakeEntity')
+            ->configureDatabase()
+            ->updateSchemaAfterCommand()
+            ->setRequiredPhpVersion(70100)
+            ->assert(function (string $output, string $directory) {
+                $this->assertFileExists($directory.'/src/Entity/User.php');
+
+                $content = file_get_contents($directory.'/src/Entity/User.php');
+                $this->assertStringNotContainsString('repositoryClass', $content);
+            }),
+        ];
+
         yield 'entity_with_fields' => [MakerTestDetails::createTest(
             $this->getMakerInstance(MakeEntity::class),
             [
